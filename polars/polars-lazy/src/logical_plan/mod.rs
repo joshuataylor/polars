@@ -94,6 +94,15 @@ pub enum LogicalPlan {
         predicate: Option<Expr>,
         aggregate: Vec<Expr>,
     },
+    #[cfg(feature = "ipc_streaming")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "ipc_streaming")))]
+    IpcStreamScan {
+        path: PathBuf,
+        schema: SchemaRef,
+        options: IpcScanOptionsInner,
+        predicate: Option<Expr>,
+        aggregate: Vec<Expr>,
+    },
     // we keep track of the projection and selection as it is cheaper to first project and then filter
     /// In memory DataFrame
     DataFrameScan {
