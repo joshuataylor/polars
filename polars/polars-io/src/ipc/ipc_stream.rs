@@ -115,7 +115,7 @@ impl<R: Read + Seek> IpcStreamReader<R> {
         projection: Option<Vec<usize>>,
     ) -> Result<DataFrame> {
         let rechunk = self.rechunk;
-        let metadata = self.metadata.unwrap();
+        let metadata = self.metadata()?;
 
         let sorted_projection = projection.clone().map(|mut proj| {
             proj.sort_unstable();
