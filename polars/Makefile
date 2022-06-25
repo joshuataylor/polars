@@ -38,7 +38,7 @@ test:
 	    -p polars-time \
 	    -p polars-utils \
 	    -- \
-	    --test-threads=2
+	    --test-threads=8
 
 integration-tests:
 	cargo t --all-features --test it -- --test-threads=2

@@ -35,9 +35,9 @@ impl LazyFrame {
         Ok(lf)
     }
 
-    /// Create a LazyFrame directly from a ipc scan.
-    #[cfg_attr(docsrs, doc(cfg(feature = "ipc")))]
-    pub fn scan_ipc(path: String, args: ScanArgsIpcStream) -> Result<Self> {
+    /// Create a LazyFrame directly from a ipc stream scan.
+    #[cfg_attr(docsrs, doc(cfg(feature = "ipc_streaming")))]
+    pub fn scan_ipc_stream(path: String, args: ScanArgsIpcStream) -> Result<Self> {
         if path.contains('*') {
             let paths = glob::glob(&path)
                 .map_err(|_| PolarsError::ComputeError("invalid glob pattern given".into()))?;

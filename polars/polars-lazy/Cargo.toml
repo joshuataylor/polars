@@ -94,6 +94,7 @@ test = [
   "abs",
   "parquet",
   "ipc",
+  "ipc_streaming",
   "dtype-date",
 ]
 
@@ -113,6 +114,7 @@ test_all = [
   "abs",
   "parquet",
   "ipc",
+  "ipc_streaming",
   "dtype-date",
 ]
 

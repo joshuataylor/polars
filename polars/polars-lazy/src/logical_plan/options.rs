@@ -95,7 +95,7 @@ pub struct IpcStreamScanOptionsInner {
     pub(crate) file_counter: FileCount,
 }
 
-impl From<IpcStreamScanOptions> for IpcScanOptionsInner {
+impl From<IpcStreamScanOptions> for IpcStreamScanOptionsInner {
     fn from(options: IpcStreamScanOptions) -> Self {
         Self {
             n_rows: options.n_rows,

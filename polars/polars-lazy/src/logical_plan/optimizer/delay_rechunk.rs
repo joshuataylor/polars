@@ -34,6 +34,11 @@ impl OptimizationRule for DelayRechunk {
                             input_node = Some(node);
                             break;
                         }
+                        #[cfg(feature = "ipc_streaming")]
+                        IpcStreamScan { .. } => {
+                            input_node = Some(node);
+                            break;
+                        }
 
                         // don't delay rechunk if there is a join first
                         Join { .. } => break,
@@ -51,6 +56,10 @@ impl OptimizationRule for DelayRechunk {
                         ParquetScan { options, .. } => options.rechunk = false,
                         #[cfg(feature = "ipc")]
                         IpcScan { options, .. } => {
+                            options.rechunk = false;
+                        }
+                        #[cfg(feature = "ipc_streaming")]
+                        IpcStreamScan { options, .. } => {
                             options.rechunk = false;
                         }
                         _ => unreachable!(),

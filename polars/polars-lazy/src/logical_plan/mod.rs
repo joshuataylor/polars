@@ -1,5 +1,5 @@
 use parking_lot::Mutex;
-#[cfg(any(feature = "ipc", feature = "csv-file", feature = "parquet"))]
+#[cfg(any(feature = "ipc", feature = "csv-file", feature = "parquet", feature="ipc_streaming"))]
 use std::path::PathBuf;
 use std::{cell::Cell, fmt::Debug, sync::Arc};
 
@@ -99,7 +99,7 @@ pub enum LogicalPlan {
     IpcStreamScan {
         path: PathBuf,
         schema: SchemaRef,
-        options: IpcScanOptionsInner,
+        options: IpcStreamScanOptionsInner,
         predicate: Option<Expr>,
         aggregate: Vec<Expr>,
     },
@@ -236,6 +236,8 @@ impl LogicalPlan {
             ParquetScan { schema, .. } => schema,
             #[cfg(feature = "ipc")]
             IpcScan { schema, .. } => schema,
+            #[cfg(feature = "ipc_streaming")]
+            IpcStreamScan { schema, .. } => schema,
             DataFrameScan { schema, .. } => schema,
             AnonymousScan { schema, .. } => schema,
             Selection { input, .. } => input.schema(),

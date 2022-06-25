@@ -16,10 +16,10 @@ pub use anonymous_scan::*;
 
 #[cfg(feature = "csv-file")]
 pub use csv::*;
-#[cfg(feature = "ipc")]
+#[cfg(any(feature = "ipc"))]
 pub use ipc::*;
 #[cfg(feature = "ipc_streaming")]
-pub use ipc::*;
+pub use ipc_stream::*;
 #[cfg(feature = "parquet")]
 pub use parquet::*;
 use std::borrow::Cow;
