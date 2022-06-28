@@ -1,4 +1,5 @@
 use super::*;
+use polars_core::series::ops::NullBehavior;
 
 #[test]
 fn test_filter_sort_diff_2984() -> Result<()> {
@@ -124,5 +125,30 @@ fn test_groupby_lit_agg() -> Result<()> {
 
     assert_eq!(out.column("foo")?.dtype(), &DataType::Utf8);
 
+    Ok(())
+}
+
+#[test]
+fn test_groupby_agg_list_with_not_aggregated() -> Result<()> {
+    let df = df![
+    "group" => ["a", "a", "a", "a", "a", "a", "b", "b", "b", "b", "b", "b"],
+    "value" => [0, 2, 3, 6, 2, 4, 7, 9, 3, 4, 6, 7, ],
+    ]?;
+
+    let out = df
+        .lazy()
+        .groupby([col("group")])
+        .agg([when(col("value").diff(1, NullBehavior::Ignore).gt_eq(0))
+            .then(col("value").diff(1, NullBehavior::Ignore))
+            .otherwise(col("value"))])
+        .sort("group", Default::default())
+        .collect()?;
+
+    let out = out.column("value")?;
+    let out = out.explode()?;
+    assert_eq!(
+        out,
+        Series::new("value", &[0, 2, 1, 3, 2, 2, 7, 2, 3, 1, 2, 1])
+    );
     Ok(())
 }
