@@ -30,7 +30,9 @@ impl LazyFrame {
             row_count: args.row_count,
             rechunk: args.rechunk,
         };
-        let mut lf: LazyFrame = LogicalPlanBuilder::scan_ipc_stream(path, options)?.build().into();
+        let mut lf: LazyFrame = LogicalPlanBuilder::scan_ipc_stream(path, options)?
+            .build()
+            .into();
         lf.opt_state.file_caching = true;
         Ok(lf)
     }

@@ -10,7 +10,12 @@ use crate::utils::{aexprs_to_schema, PushNode};
 use polars_core::frame::explode::MeltArgs;
 use polars_core::prelude::*;
 use polars_utils::arena::{Arena, Node};
-#[cfg(any(feature = "ipc", feature="ipc_streaming", feature = "csv-file", feature = "parquet"))]
+#[cfg(any(
+    feature = "ipc",
+    feature = "ipc_streaming",
+    feature = "csv-file",
+    feature = "parquet"
+))]
 use std::path::PathBuf;
 use std::sync::Arc;
 

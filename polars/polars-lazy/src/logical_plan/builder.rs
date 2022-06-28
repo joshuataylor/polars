@@ -139,7 +139,10 @@ impl LogicalPlanBuilder {
 
     #[cfg(feature = "ipc_streaming")]
     #[cfg_attr(docsrs, doc(cfg(feature = "ipc_streaming")))]
-    pub fn scan_ipc_stream<P: Into<PathBuf>>(path: P, options: IpcStreamScanOptions) -> Result<Self> {
+    pub fn scan_ipc_stream<P: Into<PathBuf>>(
+        path: P,
+        options: IpcStreamScanOptions,
+    ) -> Result<Self> {
         use polars_io::SerReader as _;
 
         let path = path.into();
@@ -153,7 +156,7 @@ impl LogicalPlanBuilder {
             aggregate: vec![],
             options: options.into(),
         }
-            .into())
+        .into())
     }
 
     #[allow(clippy::too_many_arguments)]

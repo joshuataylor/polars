@@ -1,5 +1,10 @@
 use parking_lot::Mutex;
-#[cfg(any(feature = "ipc", feature = "csv-file", feature = "parquet", feature="ipc_streaming"))]
+#[cfg(any(
+    feature = "ipc",
+    feature = "csv-file",
+    feature = "parquet",
+    feature = "ipc_streaming"
+))]
 use std::path::PathBuf;
 use std::{cell::Cell, fmt::Debug, sync::Arc};
 

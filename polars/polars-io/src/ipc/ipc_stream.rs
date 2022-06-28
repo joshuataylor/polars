@@ -33,7 +33,7 @@
 //! let df_read = IpcStreamReader::new(buf).finish().unwrap();
 //! assert!(df.frame_equal(&df_read));
 //! ```
-use crate::{finish_reader, ArrowReader, ArrowResult, ScanAggregation, PhysicalIoExpr};
+use crate::{finish_reader, ArrowReader, ArrowResult, PhysicalIoExpr, ScanAggregation};
 use crate::{prelude::*, WriterFactory};
 use arrow::io::ipc::read::{StreamMetadata, StreamState};
 use arrow::io::ipc::write::WriteOptions;
@@ -140,7 +140,7 @@ impl<R: Read + Seek> IpcStreamReader<R> {
             &schema,
             self.row_count,
         )
-            .map(|df| fix_column_order(df, projection, include_row_count))
+        .map(|df| fix_column_order(df, projection, include_row_count))
     }
 
     fn metadata(&mut self) -> Result<StreamMetadata> {
