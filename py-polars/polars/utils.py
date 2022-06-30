@@ -125,13 +125,10 @@ def _is_iterable_of(val: Iterable, itertype: Type, eltype: Type) -> bool:
 
 
 def range_to_slice(rng: range) -> slice:
-    step: Optional[int]
-    # maybe we can slice instead of take by indices
-    if rng.step != 1:
-        step = rng.step
-    else:
-        step = None
-    return slice(rng.start, rng.stop, step)
+    """
+    Return the given range as an equivalent slice.
+    """
+    return slice(rng.start, rng.stop, rng.step)
 
 
 def handle_projection_columns(
@@ -157,8 +154,7 @@ def _to_python_time(value: int) -> time:
     seconds = (microsecond // 1000_000) % 60
     minutes = (microsecond // (1000_000 * 60)) % 60
     hours = (microsecond // (1000_000 * 60 * 60)) % 24
-
-    microsecond = microsecond % seconds * 1000_000
+    microsecond = microsecond - (seconds + minutes * 60 + hours * 3600) * 1000_000
 
     return time(hour=hours, minute=minutes, second=seconds, microsecond=microsecond)
 
