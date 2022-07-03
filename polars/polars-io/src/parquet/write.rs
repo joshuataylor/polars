@@ -161,7 +161,7 @@ fn create_serializer(
         .zip(fields)
         .zip(encodings)
         .flat_map(move |((array, type_), encoding)| {
-            let encoded_columns = array_to_columns(array, type_, options, encoding).unwrap();
+            let encoded_columns = array_to_columns(array, type_, options, &encoding).unwrap();
             encoded_columns
                 .into_iter()
                 .map(|encoded_pages| {
