@@ -11,10 +11,9 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pytest
-from hypothesis import given
 
 import polars as pl
-from polars.testing import assert_frame_equal, assert_series_equal, columns, dataframes
+from polars.testing import assert_frame_equal, assert_series_equal, columns
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -26,22 +25,9 @@ def test_version() -> None:
     _version = pl.__version__
 
 
-@given(df=dataframes())
-def test_repr(df: pl.DataFrame) -> None:
-    assert isinstance(repr(df), str)
-    # print(df)
-
-
-# note: temporarily constraining dtypes for this test (possible windows-specific date bug)
-@given(df=dataframes(allowed_dtypes=[pl.Boolean, pl.UInt64, pl.Utf8]))
-def test_null_count(df: pl.DataFrame) -> None:
-    null_count, ncols = df.null_count(), len(df.columns)
-    if ncols == 0:
-        assert null_count.shape == (0, 0)
-    else:
-        assert null_count.shape == (1, ncols)
-        for idx, count in enumerate(null_count.rows()[0]):
-            assert count == sum(v is None for v in df.select_at_idx(idx).to_list())
+def test_null_count() -> None:
+    df = pl.DataFrame({"a": [2, 1, 3], "b": ["a", "b", None]})
+    assert df.null_count().shape == (1, 2)
 
 
 def test_init_empty() -> None:
@@ -241,6 +227,11 @@ def test_init_ndarray() -> None:
     # 3D array
     with pytest.raises(ValueError):
         _ = pl.DataFrame(np.random.randn(2, 2, 2))
+
+    # numpy not available
+    with patch("polars.internals.frame._NUMPY_AVAILABLE", False):
+        with pytest.raises(ValueError):
+            pl.DataFrame(np.array([1, 2, 3]), columns=["a"])
 
 
 # TODO: Remove this test case when removing deprecated behaviour
@@ -684,8 +675,9 @@ def test_groupby() -> None:
     # )
     assert df.groupby("a").apply(lambda df: df[["c"]].sum()).sort("c")["c"][0] == 1
 
-    df_groups = df.groupby("a").groups().sort("a")
-    assert df_groups["a"].series_equal(pl.Series("a", ["a", "b", "c"]))
+    with pytest.deprecated_call():
+        df_groups = df.groupby("a").groups().sort("a")
+        assert df_groups["a"].series_equal(pl.Series("a", ["a", "b", "c"]))
 
     with pytest.deprecated_call():
         # TODO: find a way to avoid indexing into GroupBy
@@ -694,9 +686,10 @@ def test_groupby() -> None:
             if subdf["a"][0] == "b":
                 assert subdf.shape == (3, 3)
 
-    assert df.groupby("a").get_group("c").shape == (1, 3)
-    assert df.groupby("a").get_group("b").shape == (3, 3)
-    assert df.groupby("a").get_group("a").shape == (2, 3)
+    with pytest.deprecated_call():
+        assert df.groupby("a").get_group("c").shape == (1, 3)
+        assert df.groupby("a").get_group("b").shape == (3, 3)
+        assert df.groupby("a").get_group("a").shape == (2, 3)
 
     # Use lazy API in eager groupby
     assert df.groupby("a").agg([pl.sum("b")]).shape == (3, 2)
@@ -2001,9 +1994,6 @@ def test_get_item() -> None:
     # expression
     assert df.select(pl.col("a")).frame_equal(pl.DataFrame({"a": [1.0, 2.0]}))
 
-    # numpy array
-    assert df[np.array([True, False])].frame_equal(pl.DataFrame({"a": [1.0], "b": [3]}))
-
     # tuple. The first element refers to the rows, the second element to columns
     assert df[:, :].frame_equal(df)
 
@@ -2020,12 +2010,16 @@ def test_get_item() -> None:
     assert df[::2].frame_equal(pl.DataFrame({"a": [1.0], "b": [3]}))
 
     # numpy array; assumed to be row indices if integers, or columns if strings
-    # TODO: add boolean mask support
     df[np.array([1])].frame_equal(pl.DataFrame({"a": [2.0], "b": [4]}))
     df[np.array(["a"])].frame_equal(pl.DataFrame({"a": [1.0, 2.0]}))
     # note that we cannot use floats (even if they could be casted to integer without loss)
     with pytest.raises(NotImplementedError):
         _ = df[np.array([1.0])]
+    # using boolean masks with numpy is deprecated
+    with pytest.deprecated_call():
+        assert df[np.array([True, False])].frame_equal(
+            pl.DataFrame({"a": [1.0], "b": [3]})
+        )
 
     # sequences (lists or tuples; tuple only if length != 2)
     # if strings or list of expressions, assumed to be column names

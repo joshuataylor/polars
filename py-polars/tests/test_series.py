@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from typing import Any, Union
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -18,15 +19,6 @@ def test_cum_agg() -> None:
     verify_series_and_expr_api(s, pl.Series("a", [1, 1, 1, 1]), "cummin")
     verify_series_and_expr_api(s, pl.Series("a", [1, 2, 3, 3]), "cummax")
     verify_series_and_expr_api(s, pl.Series("a", [1, 2, 6, 12]), "cumprod")
-
-
-# TODO: exclude obvious/known overflow inside the strategy before commenting back in
-# @given(s=series(allowed_dtypes=_NUMERIC_COL_TYPES, name="a"))
-# def test_cum_agg_extra(s: pl.Series) -> None:
-#     # confirm that ops on generated Series match equivalent Expr call
-#     # note: testing codepath-equivalence, not correctness.
-#     for op in ("cumsum", "cummin", "cummax", "cumprod"):
-#         verify_series_and_expr_api(s, None, op)
 
 
 def test_init_inputs(monkeypatch: Any) -> None:
@@ -65,6 +57,11 @@ def test_init_inputs(monkeypatch: Any) -> None:
 
     # pandas
     assert pl.Series(pd.Series([1, 2])).dtype == pl.Int64
+
+    # numpy not available
+    with patch("polars.internals.series._NUMPY_AVAILABLE", False):
+        with pytest.raises(ValueError):
+            pl.DataFrame(np.array([1, 2, 3]), columns=["a"])
 
     # Bad inputs
     with pytest.raises(ValueError):
