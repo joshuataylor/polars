@@ -1,6 +1,7 @@
 import typing
 from datetime import datetime
 from typing import Dict, Sequence, Type, Union
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -10,7 +11,7 @@ import pytest
 import polars as pl
 
 
-def test_from_numpy() -> None:
+def test_df_from_numpy() -> None:
     df = pl.DataFrame(
         {
             "int8": np.array([1, 3, 2], dtype=np.int8),
@@ -246,6 +247,12 @@ def test_from_records() -> None:
     assert df.shape == (3, 2)
 
 
+def test_from_numpy() -> None:
+    data = np.array([[1, 2, 3], [4, 5, 6]])
+    df = pl.from_numpy(data, columns=["a", "b"], orient="col")
+    assert df.shape == (3, 2)
+
+
 def test_from_arrow() -> None:
     data = pa.table({"a": [1, 2, 3], "b": [4, 5, 6]})
     df = pl.from_arrow(data)
@@ -270,6 +277,20 @@ def test_from_pandas_series() -> None:
     pd_series = pd.Series([1, 2, 3], name="pd")
     df = pl.from_pandas(pd_series)
     assert df.shape == (3,)
+
+
+def test_from_optional_not_available() -> None:
+    with patch("polars.convert._NUMPY_AVAILABLE", False):
+        with pytest.raises(ImportError):
+            pl.from_numpy(np.array([[1, 2], [3, 4]]), columns=["a", "b"])
+    with patch("polars.convert._PYARROW_AVAILABLE", False):
+        with pytest.raises(ImportError):
+            pl.from_arrow(pa.table({"a": [1, 2, 3], "b": [4, 5, 6]}))
+        with pytest.raises(ImportError):
+            pl.from_pandas(pd.Series([1, 2, 3]))
+    with patch("polars.convert._PANDAS_AVAILABLE", False):
+        with pytest.raises(ImportError):
+            pl.from_pandas(pd.Series([1, 2, 3]))
 
 
 def test_upcast_pyarrow_dicts() -> None:
@@ -396,3 +417,9 @@ def test_cat_int_types_3500() -> None:
         for t in [int_dict_type, uint_dict_type]:
             s = pl.from_arrow(pyarrow_array.cast(t))
             assert s.series_equal(pl.Series(["a", "a", "b"]).cast(pl.Categorical))
+
+
+def test_from_pyarrow_chunked_array() -> None:
+    column = pa.chunked_array([[1], [2]])
+    series = pl.Series("column", column)
+    assert series.to_list() == [1, 2]

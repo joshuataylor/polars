@@ -388,17 +388,17 @@ class DataFrame(metaclass=DataFrameMetaClass):
     @classmethod
     def _from_records(
         cls: type[DF],
-        data: np.ndarray | Sequence[Sequence[Any]],
+        data: Sequence[Sequence[Any]],
         columns: Sequence[str] | None = None,
         orient: str | None = None,
     ) -> DF:
         """
-        Construct a DataFrame from a numpy ndarray or sequence of sequences.
+        Construct a DataFrame from a sequence of sequences.
 
         Parameters
         ----------
-        data : numpy ndarray or Sequence of sequences
-            Two-dimensional data represented as numpy ndarray or sequence of sequences.
+        data : Sequence of sequences
+            Two-dimensional data represented as a sequence of sequences.
         columns : Sequence of str, default None
             Column labels to use for resulting DataFrame. Must match data dimensions.
             If not specified, columns will be named `column_0`, `column_1`, etc.
@@ -411,15 +411,35 @@ class DataFrame(metaclass=DataFrameMetaClass):
         -------
         DataFrame
         """
-        if _NUMPY_AVAILABLE and isinstance(data, np.ndarray):
-            pydf = numpy_to_pydf(data, columns=columns, orient=orient)
-        else:
-            pydf = sequence_to_pydf(
-                data,  # type: ignore[arg-type]
-                columns=columns,
-                orient=orient,
-            )
-        return cls._from_pydf(pydf)
+        return cls._from_pydf(sequence_to_pydf(data, columns=columns, orient=orient))
+
+    @classmethod
+    def _from_numpy(
+        cls: type[DF],
+        data: np.ndarray,
+        columns: Sequence[str] | None = None,
+        orient: str | None = None,
+    ) -> DF:
+        """
+        Construct a DataFrame from a numpy ndarray.
+
+        Parameters
+        ----------
+        data : numpy ndarray
+            Two-dimensional data represented as a numpy ndarray.
+        columns : Sequence of str, default None
+            Column labels to use for resulting DataFrame. Must match data dimensions.
+            If not specified, columns will be named `column_0`, `column_1`, etc.
+        orient : {'col', 'row'}, default None
+            Whether to interpret two-dimensional data as columns or as rows. If None,
+            the orientation is inferred by matching the columns and data dimensions. If
+            this does not yield conclusive results, column orientation is used.
+
+        Returns
+        -------
+        DataFrame
+        """
+        return cls._from_pydf(numpy_to_pydf(data, columns=columns, orient=orient))
 
     @classmethod
     def _from_arrow(
@@ -624,7 +644,7 @@ class DataFrame(metaclass=DataFrameMetaClass):
         file: str | Path | BinaryIO,
         columns: list[int] | list[str] | None = None,
         n_rows: int | None = None,
-        parallel: bool = True,
+        parallel: str = "auto",
         row_count_name: str | None = None,
         row_count_offset: int = 0,
     ) -> DF:
@@ -640,7 +660,8 @@ class DataFrame(metaclass=DataFrameMetaClass):
         n_rows
             Stop reading from parquet file after reading ``n_rows``.
         parallel
-            Read the parquet file in parallel. The single threaded reader consumes less memory.
+            Any of { 'auto', 'columns', 'row_groups', 'none' }
+            This determines the direction of parallelism. 'auto' will try to determine the optimal direction.
         """
         if isinstance(file, (str, Path)):
             file = format_path(file)
@@ -1391,6 +1412,9 @@ class DataFrame(metaclass=DataFrameMetaClass):
                 - "brotli"
                 - "lz4"
                 - "zstd"
+
+            The default compression "lz4" (actually lz4raw) has very good performance, but may not yet been supported
+            by older readers. If you want more compatability guarantees, consider using "snappy".
         compression_level
             Supported by {'gzip', 'brotli', 'zstd'}
                 - "gzip"
@@ -2812,7 +2836,7 @@ class DataFrame(metaclass=DataFrameMetaClass):
 
     def groupby(
         self: DF,
-        by: str | pli.Expr | Sequence[str] | Sequence[pli.Expr],
+        by: str | pli.Expr | Sequence[str | pli.Expr],
         maintain_order: bool = False,
     ) -> GroupBy[DF]:
         """
@@ -4883,7 +4907,8 @@ class DataFrame(metaclass=DataFrameMetaClass):
 
     def with_columns(
         self: DF,
-        exprs: pli.Expr | pli.Series | list[pli.Expr | pli.Series],
+        exprs: pli.Expr | pli.Series | Sequence[pli.Expr | pli.Series] | None = None,
+        **named_exprs: pli.Expr | pli.Series,
     ) -> DF:
         """
         Add or overwrite multiple columns in a DataFrame.
@@ -4892,10 +4917,11 @@ class DataFrame(metaclass=DataFrameMetaClass):
         ----------
         exprs
             List of Expressions that evaluate to columns.
+        **named_exprs
+            Named column Expressions, provided as kwargs.
 
         Examples
         --------
-
         >>> df = pl.DataFrame(
         ...     {
         ...         "a": [1, 2, 3, 4],
@@ -4924,13 +4950,35 @@ class DataFrame(metaclass=DataFrameMetaClass):
         ├╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌╌┤
         │ 4   ┆ 13.0 ┆ true  ┆ 16.0 ┆ 6.5  ┆ false │
         └─────┴──────┴───────┴──────┴──────┴───────┘
-
+        ...
+        >>> # Support for kwarg expressions is considered EXPERIMENTAL.
+        >>> # Currently requires opt-in via `pl.Config` boolean flag:
+        >>>
+        >>> pl.Config.with_columns_kwargs = True
+        >>> df.with_columns(
+        ...     d=pl.col("a") * pl.col("b"),
+        ...     e=pl.col("c").is_not(),
+        ... )
+        shape: (4, 5)
+        ┌─────┬──────┬───────┬──────┬───────┐
+        │ a   ┆ b    ┆ c     ┆ d    ┆ e     │
+        │ --- ┆ ---  ┆ ---   ┆ ---  ┆ ---   │
+        │ i64 ┆ f64  ┆ bool  ┆ f64  ┆ bool  │
+        ╞═════╪══════╪═══════╪══════╪═══════╡
+        │ 1   ┆ 0.5  ┆ true  ┆ 0.5  ┆ false │
+        ├╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌╌┤
+        │ 2   ┆ 4.0  ┆ true  ┆ 8.0  ┆ false │
+        ├╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌╌┤
+        │ 3   ┆ 10.0 ┆ false ┆ 30.0 ┆ true  │
+        ├╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌╌┼╌╌╌╌╌╌┼╌╌╌╌╌╌╌┤
+        │ 4   ┆ 13.0 ┆ true  ┆ 52.0 ┆ false │
+        └─────┴──────┴───────┴──────┴───────┘
         """
-        if not isinstance(exprs, list):
+        if exprs is not None and not isinstance(exprs, Sequence):
             exprs = [exprs]
         return (
             self.lazy()
-            .with_columns(exprs)
+            .with_columns(exprs, **named_exprs)
             .collect(no_optimization=True, string_cache=False)
         )
 

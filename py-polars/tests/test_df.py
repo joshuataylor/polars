@@ -2,7 +2,7 @@
 import sys
 import typing
 from builtins import range
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from io import BytesIO
 from typing import Any, Iterator, Type
 from unittest.mock import patch
@@ -1431,12 +1431,14 @@ def test_repeat_by() -> None:
 
 
 def test_join_dates() -> None:
-    date_times = pd.date_range(
-        "2021-06-24 00:00:00", "2021-06-24 10:00:00", freq="1H", closed="left"
+    dts_in = pl.date_range(
+        datetime(2021, 6, 24),
+        datetime(2021, 6, 24, 10, 0, 0),
+        interval=timedelta(hours=1),
+        closed="left",
     )
     dts = (
-        pl.from_pandas(date_times)
-        .cast(int)
+        dts_in.cast(int)
         .apply(lambda x: x + np.random.randint(1_000 * 60, 60_000 * 60))
         .cast(pl.Datetime)
     )
@@ -1449,7 +1451,8 @@ def test_join_dates() -> None:
             "value": [2, 3, 4, 1, 2, 3, 5, 1, 2, 3],
         }
     )
-    df.join(df, on="datetime")
+    out = df.join(df, on="datetime")
+    assert len(out) == len(df)
 
 
 def test_asof_cross_join() -> None:
@@ -2375,3 +2378,54 @@ def test_selection_regex_and_multicol() -> None:
         "b": [25, 36, 49, 64],
         "c": [81, 100, 121, 144],
     }
+
+
+def test_with_columns() -> None:
+    df = pl.DataFrame(
+        {
+            "a": [1, 2, 3, 4],
+            "b": [0.5, 4, 10, 13],
+            "c": [True, True, False, True],
+        }
+    )
+    srs_named = pl.Series("f", [3, 2, 1, 0])
+    srs_unnamed = pl.Series(values=[3, 2, 1, 0])
+
+    expected = pl.DataFrame(
+        {
+            "a": [1, 2, 3, 4],
+            "b": [0.5, 4, 10, 13],
+            "c": [True, True, False, True],
+            "d": [0.5, 8.0, 30.0, 52.0],
+            "e": [False, False, True, False],
+            "f": [3, 2, 1, 0],
+        }
+    )
+
+    # as exprs list
+    dx = df.with_columns(
+        [(pl.col("a") * pl.col("b")).alias("d"), ~pl.col("c").alias("e"), srs_named]
+    )
+    assert_frame_equal(dx, expected)
+
+    # as **kwargs (experimental feature: requires opt-in)
+    pl.Config.with_columns_kwargs = True
+
+    dx = df.with_columns(
+        d=pl.col("a") * pl.col("b"),
+        e=~pl.col("c"),
+        f=srs_unnamed,
+    )
+    assert_frame_equal(dx, expected)
+
+    # mixed
+    dx = df.with_columns(
+        [(pl.col("a") * pl.col("b")).alias("d")],
+        e=~pl.col("c"),
+        f=srs_unnamed,
+    )
+    assert_frame_equal(dx, expected)
+
+    # at least one of exprs/**named_exprs required
+    with pytest.raises(ValueError):
+        _ = df.with_columns()
