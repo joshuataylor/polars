@@ -1,0 +1,6 @@
+﻿polars.internals.expr.datetime.ExprDateTimeNameSpace.round
+==========================================================
+
+.. currentmodule:: polars.internals.expr.datetime
+
+.. automethod:: ExprDateTimeNameSpace.round

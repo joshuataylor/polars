@@ -1,0 +1,6 @@
+﻿polars.internals.expr.datetime.ExprDateTimeNameSpace.tz\_localize
+=================================================================
+
+.. currentmodule:: polars.internals.expr.datetime
+
+.. automethod:: ExprDateTimeNameSpace.tz_localize

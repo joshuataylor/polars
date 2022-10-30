@@ -1,0 +1,6 @@
+﻿polars.internals.series.list.ListNameSpace.to\_struct
+=====================================================
+
+.. currentmodule:: polars.internals.series.list
+
+.. automethod:: ListNameSpace.to_struct
